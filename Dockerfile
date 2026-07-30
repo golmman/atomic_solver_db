@@ -1,3 +1,3 @@
 FROM postgres:16
 
-ADD proof_tree.sql /tmp/proof_tree.sql
+COPY proof_tree.sql /docker-entrypoint-initdb.d/proof_tree.sql
