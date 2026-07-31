@@ -9,6 +9,4 @@ if [[ "${1:-}" == "--rebuild" ]]; then
   podman rmi -f "$image_name" >/dev/null 2>&1 || true
 fi
 
-cp ../atomic_solver/proof_tree.sql .
-
 podman build "${build_args[@]}" .

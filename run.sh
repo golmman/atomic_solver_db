@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-./build.sh
+cp ../atomic_solver/proof_tree.bin .
 
 container_name="atomic_solver_db"
 image_name="localhost/atomic_solver_db:latest"
