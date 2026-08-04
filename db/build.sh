@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 image_name="localhost/atomic_solver_db:latest"
 build_args=(-t "$image_name")
 
@@ -9,4 +11,4 @@ if [[ "${1:-}" == "--rebuild" ]]; then
   podman rmi -f "$image_name" >/dev/null 2>&1 || true
 fi
 
-podman build "${build_args[@]}" .
+podman build "${build_args[@]}" "$SCRIPT_DIR"
