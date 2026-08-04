@@ -1,13 +1,17 @@
+I want a simple local web page with the following features:
 
-replay moves
-moves are stored in uci format
-start position from db `proof_tree_meta`
-list possible moves
-show current line
-show start fen
+- displays chess board
+- start position from db `proof_tree_meta`
+- shows start fen
+- list moves all child moves of the current position from the db
+  - on click move is applied, board and move list updated
+- undo last move
+- show current line of moves / move history
 
-* directory: `fe/`
-* tech stack: npm, html, css, javascript
-* Frontend-Server: `localhost:7000`
-* connect to postgres db on localhost:5432
-* display chess board
+technical details:
+
+- directory: `fe/`
+- tech stack: npm, html, css, javascript
+- Frontend-Server: `localhost:7000`
+- connect to postgres db on localhost:5432
+- moves are stored in uci format
