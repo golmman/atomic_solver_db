@@ -21,3 +21,15 @@ See all children of root:
 ```sql
 SELECT * FROM proof_tree WHERE parent_id = 0;
 ```
+
+## Web frontend
+
+A simple web frontend is in `fe/`. Start the database first, then:
+
+```bash
+cd fe
+npm install
+npm start
+```
+
+Open `http://localhost:7000` to browse the proof tree from the start position, make moves, undo, and view the current line.

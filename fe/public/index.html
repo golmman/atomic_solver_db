@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic Solver Proof Tree</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Atomic Solver Proof Tree</h1>
+  </header>
+
+  <main>
+    <section id="board-section" aria-label="Chess board">
+      <div id="board"></div>
+      <div id="fen-box">
+        <strong>FEN:</strong> <code id="fen"></code>
+      </div>
+      <div id="meta-box">
+        <p><strong>Root outcome:</strong> <span id="root-outcome"></span></p>
+        <p><strong>Root depth:</strong> <span id="root-depth"></span></p>
+        <p><strong>Node count:</strong> <span id="node-count"></span></p>
+      </div>
+    </section>
+
+    <aside id="sidebar" aria-label="Moves and history">
+      <section id="moves-panel">
+        <h2>Available moves</h2>
+        <ul id="moves"></ul>
+        <p id="no-moves" class="empty">No child moves</p>
+      </section>
+
+      <section id="history-panel">
+        <h2>Current line</h2>
+        <button id="undo" disabled>Undo last move</button>
+        <ol id="history"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

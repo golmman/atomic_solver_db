@@ -1,3 +1,5 @@
 db/proof_tree.bin
 __pycache__/
 *.pyc
+fe/node_modules/
+fe/package-lock.json

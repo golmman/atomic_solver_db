@@ -47,3 +47,13 @@ There is no automated test or lint setup. After `make run`, verify the import wi
 SELECT * FROM proof_tree_meta;
 SELECT * FROM proof_tree WHERE parent_id = 0;
 ```
+
+## Frontend
+
+A local web frontend lives in `fe/`.
+
+- Install dependencies: `cd fe && npm install`
+- Start the server: `cd fe && npm start`
+- Open `http://localhost:7000`
+
+The server connects to PostgreSQL on `localhost:5432` (default database `proof_tree`, user `admin`, password `secret`; override with `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`). If the database is not reachable and `db/proof_tree.bin` exists, it falls back to loading the binary directly (`USE_BIN=1` forces the binary path).
