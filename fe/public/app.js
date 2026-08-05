@@ -8,6 +8,15 @@ const state = {
   path: [],
 };
 
+const arrowSvg = document.getElementById('arrow');
+const arrowLine = document.getElementById('arrow-line');
+
+function squareName(fileIndex, rankIndex) {
+  const file = String.fromCharCode('a'.charCodeAt(0) + fileIndex);
+  const rank = 8 - rankIndex;
+  return file + rank;
+}
+
 function expandRank(rank) {
   const squares = [];
   for (const ch of rank) {
@@ -20,7 +29,44 @@ function expandRank(rank) {
   return squares;
 }
 
-function renderBoard(fen) {
+function uciToSquares(uci) {
+  if (!uci || uci.length < 4) return [null, null];
+  return [uci.slice(0, 2), uci.slice(2, 4)];
+}
+
+function getSquareElement(name) {
+  if (!name) return null;
+  return document.querySelector(`.square[data-square="${name}"]`);
+}
+
+function showArrow(uci) {
+  const [from, to] = uciToSquares(uci);
+  const fromSq = getSquareElement(from);
+  const toSq = getSquareElement(to);
+  if (!fromSq || !toSq) return;
+
+  const wrapper = document.getElementById('board-wrapper');
+  const wrapRect = wrapper.getBoundingClientRect();
+  const fromRect = fromSq.getBoundingClientRect();
+  const toRect = toSq.getBoundingClientRect();
+
+  const x1 = fromRect.left - wrapRect.left + fromRect.width / 2;
+  const y1 = fromRect.top - wrapRect.top + fromRect.height / 2;
+  const x2 = toRect.left - wrapRect.left + toRect.width / 2;
+  const y2 = toRect.top - wrapRect.top + toRect.height / 2;
+
+  arrowLine.setAttribute('x1', x1);
+  arrowLine.setAttribute('y1', y1);
+  arrowLine.setAttribute('x2', x2);
+  arrowLine.setAttribute('y2', y2);
+  arrowSvg.style.display = 'block';
+}
+
+function hideArrow() {
+  arrowSvg.style.display = 'none';
+}
+
+function renderBoard(fen, lastMoveUci) {
   const boardPart = fen.split(' ')[0];
   const ranks = boardPart.split('/');
   const board = document.getElementById('board');
@@ -33,6 +79,7 @@ function renderBoard(fen) {
       const square = document.createElement('div');
       const isDark = (rankIndex + fileIndex) % 2 === 1;
       square.className = `square ${isDark ? 'dark' : 'light'}`;
+      square.dataset.square = squareName(fileIndex, rankIndex);
 
       if (piece) {
         const span = document.createElement('span');
@@ -43,6 +90,14 @@ function renderBoard(fen) {
 
       board.appendChild(square);
     }
+  }
+
+  if (lastMoveUci) {
+    const [from, to] = uciToSquares(lastMoveUci);
+    const fromSq = getSquareElement(from);
+    const toSq = getSquareElement(to);
+    if (fromSq) fromSq.classList.add('last-from');
+    if (toSq) toSq.classList.add('last-to');
   }
 }
 
@@ -62,6 +117,8 @@ function renderChildren(children) {
     const btn = document.createElement('button');
     btn.textContent = child.uciMove;
     btn.addEventListener('click', () => loadNode(child.nodeId));
+    btn.addEventListener('mouseenter', () => showArrow(child.uciMove));
+    btn.addEventListener('mouseleave', hideArrow);
     li.appendChild(btn);
     list.appendChild(li);
   }
@@ -78,7 +135,6 @@ function renderHistory(path) {
     rootLi.textContent = 'Start position';
     list.appendChild(rootLi);
   } else {
-    // Pair white and black moves: 1. e2e4 e7e5
     let currentLi = null;
     for (let i = 1; i < path.length; i++) {
       const moveNum = Math.floor((i + 1) / 2);
@@ -97,6 +153,7 @@ function renderHistory(path) {
 }
 
 async function loadNode(id) {
+  hideArrow();
   const res = await fetch(`/api/node/${id}`);
   if (!res.ok) {
     console.error('Failed to load node', id, await res.text());
@@ -106,7 +163,7 @@ async function loadNode(id) {
 
   state.nodeId = data.nodeId;
   document.getElementById('fen').textContent = data.fen;
-  renderBoard(data.fen);
+  renderBoard(data.fen, data.uciMove);
   renderChildren(data.children);
   renderHistory(data.path);
 }
