@@ -6,9 +6,10 @@
 
 ## Build and run
 
-- `make build` — build the Podman image (`localhost/atomic_solver_db:latest`).
-- `make rebuild` — rebuild the image with `--no-cache --pull`.
-- `make run` — start the PostgreSQL container on `localhost:5432`.
+- `make db_build` — build the Podman image (`localhost/atomic_solver_db:latest`).
+- `make db_rebuild` — rebuild the image with `--no-cache --pull`.
+- `make db_run` — start the PostgreSQL container on `localhost:5432`.
+- `make fe_run` — start the frontend on `localhost:7000`.
 
 Requires **Podman**. The run script expects `atomic_solver/proof_tree.bin` in the parent directory of this repo; otherwise a local `db/proof_tree.bin` must exist.
 

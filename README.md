@@ -4,9 +4,10 @@ Loads the `proof_tree.bin` from atomic_solver into a containerized postgres db.
 
 ## Build and run
 
-- `make build`: builds the containerized postgres db
-- `make rebuild`: rebuild the container
-- `make run`: starts the container
+- `make db_build` — build the Podman image (`localhost/atomic_solver_db:latest`).
+- `make db_rebuild` — rebuild the image with `--no-cache --pull`.
+- `make db_run` — start the PostgreSQL container on `localhost:5432`.
+- `make fe_run` — start the frontend on `localhost:7000`.
 
 ## Quick query guide
 
