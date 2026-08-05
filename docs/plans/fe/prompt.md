@@ -26,3 +26,4 @@ I want the following updates:
 * move list should be always to the right of the board
 * move list items should stacked be vertically, not horizontally
 
+

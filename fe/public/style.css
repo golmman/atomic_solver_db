@@ -42,11 +42,28 @@ main {
   flex-direction: row;
   justify-content: center;
   align-items: flex-start;
-  gap: 2.5rem;
+  gap: 2rem;
   padding: 2rem;
-  max-width: 1400px;
+  max-width: 1600px;
   width: 100%;
   margin: 0 auto;
+}
+
+#history-sidebar,
+#moves-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex-shrink: 0;
+  width: 300px;
+}
+
+#history-sidebar > section,
+#moves-sidebar > section {
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 #board-section {
@@ -150,22 +167,8 @@ main {
   margin: 0.3rem 0;
 }
 
-#sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  width: 340px;
-  flex-shrink: 0;
-}
-
-#sidebar section {
-  background: var(--panel);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-#sidebar h2 {
+#history-sidebar h2,
+#moves-sidebar h2 {
   margin: 0 0 0.75rem 0;
   font-size: 1.1rem;
   border-bottom: 2px solid var(--accent);
@@ -179,7 +182,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 520px;
+  max-height: 680px;
   overflow-y: auto;
 }
 
@@ -243,7 +246,7 @@ main {
   padding-left: 1.25rem;
   font-family: "SF Mono", Monaco, Consolas, monospace;
   font-size: 0.95rem;
-  max-height: 260px;
+  max-height: 680px;
   overflow-y: auto;
 }
 

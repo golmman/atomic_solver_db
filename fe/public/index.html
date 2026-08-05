@@ -11,6 +11,14 @@
   </header>
 
   <main>
+    <aside id="history-sidebar" aria-label="Current line">
+      <section id="history-panel">
+        <h2>Current line</h2>
+        <button id="undo" disabled>Undo last move</button>
+        <ol id="history"></ol>
+      </section>
+    </aside>
+
     <section id="board-section" aria-label="Chess board">
       <div id="board-wrapper">
         <div id="board"></div>
@@ -42,17 +50,11 @@
       </div>
     </section>
 
-    <aside id="sidebar" aria-label="Moves and history">
+    <aside id="moves-sidebar" aria-label="Available moves">
       <section id="moves-panel">
         <h2>Available moves</h2>
         <ul id="moves"></ul>
         <p id="no-moves" class="empty">No child moves</p>
-      </section>
-
-      <section id="history-panel">
-        <h2>Current line</h2>
-        <button id="undo" disabled>Undo last move</button>
-        <ol id="history"></ol>
       </section>
     </aside>
   </main>
