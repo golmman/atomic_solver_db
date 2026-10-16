@@ -4,10 +4,14 @@
 
 `atomic_solver_db` is a static, dependency-free proof-line browser over the
 startpos proof database of atomic chess (`proofdb.db`, SQLite, schema v2 —
-see `docs/plans/redesign/handoff/global_proof_store.md`). All logic runs
-client-side; the server only serves static files.
+see `docs/plans/redesign/handoff/global_proof_store.md`). The data is a
+**partial AND/OR proof tree** rooted at the standard starting position,
+keyed by move path; a missing child row means "no recorded fact", and an
+open node is *undecided*. All logic runs client-side; the server only
+serves static files.
 
-A redesign is in progress, planned in `docs/plans/redesign/`:
+The redesign (planned in `docs/plans/redesign/`) is **complete** — all four
+single-session plans are done and each has a `reportN.md`:
 
 - `handoff/` — the data contract: `global_proof_store.md` (normative
   schema-v2 spec), `BROWSER_BRIEF.md`, `HANDOFF.md`.
@@ -15,11 +19,10 @@ A redesign is in progress, planned in `docs/plans/redesign/`:
   `atomic-movegen` 2.3, built as the `engine/` crate; D2 sql.js; D3
   static server; D4 preserved look; D5 delivery gate; D6 absence
   semantics).
-- `plan1.md` … `plan4.md` — consecutive single-session plans (plan1 done:
-  old stack removed, scaffold + load gate; plan2 done: WASM engine +
-  replay gate; plan3: board navigation; plan4: node facts panel +
-  polish). Each ends with `reportN.md`; read the latest report before
-  continuing.
+- `plan1.md` … `plan4.md` + `report1.md` … `report4.md` — plans and their
+  session reports. Read the latest report (`report4.md`) for the state of
+  the shipped site. Nothing further is planned; treat new work as new
+  scope.
 
 ## Rules engine (D1)
 
@@ -51,6 +54,8 @@ silent skip.
   - `sync-db.mjs` verifies the sha256 of `data/proofdb/proofdb.db`
     against `fe/delivery.json` and copies the file (+ the stamp) to
     `fe/public/`. A mismatch hard-fails with instructions.
+  - `sync-engine.mjs` builds the WASM engine when
+    `fe/public/vendor/engine/` is missing (see above).
 
 ## Data delivery
 
@@ -75,20 +80,38 @@ silent skip.
 ## Key files
 
 - `fe/server.mjs` — dependency-free static server (no API endpoints).
-- `fe/sync-db.mjs`, `fe/sync-vendor.mjs` — start-time sync steps.
+- `fe/sync-db.mjs`, `fe/sync-vendor.mjs`, `fe/sync-engine.mjs` —
+  start-time sync steps.
 - `fe/delivery.json` — the delivery stamp the gate compares against.
-- `fe/public/js/db.js` — fetch + open the DB with sql.js, read helpers.
+- `fe/public/js/db.js` — fetch + open the DB with sql.js, read helpers
+  (children, per-ply child lookup, shard metadata, view queries).
 - `fe/public/js/gates.js` — gate 1 (version stamp), gate 2 (structural
   invariants a–f), gate 3 (replay checks).
 - `fe/public/js/engine.js` — browser wrapper over the vendored WASM
   engine (`fe/public/vendor/engine/`, produced by `engine/build.sh`).
-- `fe/public/js/nav.js` — board + move navigation (plan3): navigation
-  state is the path, positions come from engine replay, move lists split
-  into recorded children (status-coloured) and rowless legal replies
-  ("unknown").
+- `fe/public/js/nav.js` — board + move navigation and the node facts
+  panel: navigation state is the path, positions come from engine replay,
+  move lists split into recorded children (status-coloured) and rowless
+  legal replies ("unknown"); the facts panel shows outcome/depth/
+  terminality/provenance/ply/id/path per node.
+- `fe/public/js/views.js` — cheap views (brief §7.4): open frontier and
+  shallowest proven wins as link lists that launch navigation.
 - `fe/public/js/app.js` — boot: progress, gates, version-stamp panel.
 - `fe/public/index.html`, `fe/public/style.css` — look and feel
   (preserved per D4; extended, not restyled).
+
+## Schema summary (schema v2)
+
+- `meta` — key/value: `schema_version`, `root_fen`, `node_count`,
+  `built_from` (the data version stamp together with the census).
+- `nodes` — one row per position-by-path: `id`, `parent_id`, `ply`,
+  `move_uci`, `move_code`, `outcome` (`'win'`/`'loss'`/NULL = open),
+  `depth_bound`, `depth_status` (`'exact'`/`'bound'`, NULL iff outcome
+  NULL), `provenance` (comma-separated shard tags). Terminality is
+  derivable (`outcome NOT NULL AND depth_bound = 0`), never stored.
+- `shards` — producer provenance metadata (tag, file, sha256, n_nodes,
+  …); used only to back evidence tooltips.
+- `censor` — producer scheduling state: never read, never rendered.
 
 ## Conventions
 
@@ -96,10 +119,11 @@ silent skip.
   `fe/public/proofdb.db`, `fe/public/delivery.json`,
   `fe/node_modules/`, `fe/package-lock.json` are gitignored.
 - Plain ES modules, no build step, no framework.
-- The `censor` table (schema v2) is producer scheduling state: never read
-  it, never render anything from it. The DB is never written to.
+- The `censor` table is never read and never rendered. The DB is never
+  written to (all client access is SELECT-only).
 - Missing child rows mean "no recorded fact", never "illegal" or
-  "refuted"; open nodes are *undecided*, never "draw" (D6).
+  "refuted"; open nodes are *undecided*, never "draw" (D6). No UI path
+  renders absence as anything other than unknown/undecided.
 
 ## Verification
 
@@ -111,7 +135,7 @@ silent skip.
 - Acceptance for redesign sessions: `rg -i 'proof_tree|podman|postgres|pg\b|chessops|bin-loader'`
   finds no live references outside `docs/plans/redesign/`.
 
-## UI architecture (plan3)
+## UI architecture
 
 - **State = the path.** The navigation state is the list of UCI moves from
   the root plus the resolved node-id chain (one entry per ply, `null` when
@@ -123,7 +147,8 @@ silent skip.
 - **Engine board.** One engine board is created over `root_fen` at boot
   and kept for the session; navigation applies/undoes moves on it
   (`engine.apply`/`engine.undo`), reusing the facade the replay gate
-  initialised.
+  initialised. `nav.navigateToNode(id)` reconstructs a stored node's path
+  by walking its parent chain and replays it from the root.
 - **Move lists** (right sidebar, two visibly separate groups):
   recorded children (stored rows in id order, labelled with the recorded
   fact — win → `--accent`, loss → `--danger`, open → neutral, labelled
@@ -131,15 +156,24 @@ silent skip.
   recorded set — neutral dashed, labelled *unknown*). Both navigate.
   Beyond a row-free node there are no rows at all, so the recorded group
   is empty there and every legal reply is unknown.
+- **Node facts panel** (under the board): prose status line plus
+  key/value rows — ply, node id, outcome (side-to-move perspective),
+  depth_bound with depth_status (exact = proven minimal, bound = upper
+  bound), derivable terminality and its meaning, the full UCI path, and
+  provenance shard tags rendered as evidence chips (tooltip from a cheap
+  `shards` SELECT, no proof semantics). At the root it also shows
+  `root_fen`, `built_from`, and the census. A row-free position shows
+  only the "No recorded facts for this position — unknown (not in the
+  database)" state.
+- **Version stamp in the running UI**: a `#meta-box` under the FEN box
+  shows `built_from` (short) + node census at all times; the full stamp +
+  gate summary panel sits below it (boot surface).
+- **Views** (left sidebar, below history): the open frontier
+  (`outcome IS NULL ORDER BY ply, id`, 64 rows) and the shallowest proven
+  wins (`min depth_bound` among `'win'`; 20,220 rows, list capped at 50
+  with the full count stated). Every entry launches navigation to that
+  node's path. Not implemented (recorded future work): principal-line
+  renderer and shard browser.
 - **History** (left sidebar): path breadcrumb with move-number grouping,
   entries clickable to jump back, `Undo` button; hover arrow and
   last-move highlight on every move button.
-- A row-free position shows "No recorded facts for this position —
-  unknown (not in the database)"; no "undecided" label there. The full
-  node facts panel is plan4.
-
-## Pending (plan4)
-
-The node facts panel (outcome, depth_bound, depth_status, terminality,
-provenance) and polish are next; the navigation surface
-(`fe/public/js/nav.js`) is in place for it.

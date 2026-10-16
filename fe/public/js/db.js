@@ -151,6 +151,66 @@ export function readChildren(db, nodeId) {
   return rows;
 }
 
+// Shard metadata for a node's provenance tags (evidence display only —
+// spec §3: provenance tags imply no proof semantics). One batched SELECT,
+// chunked to keep the IN lists small.
+export function readShardInfo(db, tags) {
+  const byTag = {};
+  for (let i = 0; i < tags.length; i += 100) {
+    const chunk = tags.slice(i, i + 100);
+    const stmt = db.prepare(
+      `SELECT tag, file, n_nodes FROM shards WHERE tag IN (${chunk.map(() => '?').join(',')})`
+    );
+    stmt.bind(chunk);
+    while (stmt.step()) {
+      const r = stmt.getAsObject();
+      byTag[r.tag] = { file: r.file, nNodes: r.n_nodes };
+    }
+    stmt.free();
+  }
+  return byTag;
+}
+
+// One node by id (parent chain walks for view navigation; ≤ ply lookups).
+export function readNodeById(db, id) {
+  const stmt = db.prepare('SELECT id, parent_id, move_uci FROM nodes WHERE id = ?');
+  stmt.bind([id]);
+  let row = null;
+  if (stmt.step()) {
+    const r = stmt.getAsObject();
+    row = { id: r.id, parentId: r.parent_id, moveUci: r.move_uci };
+  }
+  stmt.free();
+  return row;
+}
+
+// The two cheap views (brief §7.4, spec §7 queries). The shallowest proven
+// wins list is capped: only the first `winLimit` rows are returned, with the
+// full count alongside — the view stays a small link list.
+export function readViews(db, winLimit = 50) {
+  const rows = (sql, params) => {
+    const stmt = db.prepare(sql);
+    stmt.bind(params ?? []);
+    const out = [];
+    while (stmt.step()) {
+      const r = stmt.getAsObject();
+      out.push({ id: r.id, ply: r.ply });
+    }
+    stmt.free();
+    return out;
+  };
+  const openFrontier = rows(
+    'SELECT id, ply FROM nodes WHERE outcome IS NULL ORDER BY ply, id'
+  );
+  const minWin = rows(
+    "SELECT id, ply FROM nodes WHERE outcome = 'win' AND depth_bound =\n      (SELECT MIN(depth_bound) FROM nodes WHERE outcome = 'win') ORDER BY ply, id"
+  );
+  return {
+    openFrontier,
+    shallowWins: { total: minWin.length, rows: minWin.slice(0, winLimit), capped: minWin.length > winLimit },
+  };
+}
+
 // Whole-table read of nodes (≈43k rows, well within one tab). `censor` is
 // never read.
 export function readAllNodes(db) {

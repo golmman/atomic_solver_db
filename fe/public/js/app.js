@@ -12,7 +12,8 @@ import {
 } from './db.js';
 import { runGate1, runGate2, runGate3 } from './gates.js';
 import { loadEngine } from './engine.js';
-import { initNav } from './nav.js';
+import { initNav, navigateToNode } from './nav.js';
+import { initViews } from './views.js';
 
 const gatePanel = document.getElementById('gate-panel');
 
@@ -275,11 +276,19 @@ async function boot() {
   });
   void tables;
 
-  // Board + move navigation (plan3): the gates passed, so the replayed tree
-  // is trusted. Reuse the engine facade the replay gate initialised.
+  // Board + move navigation (plan3) + node facts panel and cheap views
+  // (plan4): the gates passed, so the replayed tree is trusted. Reuse the
+  // engine facade the replay gate initialised.
   const root = nodes.find((n) => n.parentId === null || n.parentId === undefined);
   try {
-    initNav({ db, engine, rootFen: meta.root_fen, root });
+    initNav({
+      db,
+      engine,
+      rootFen: meta.root_fen,
+      root,
+      stamp: { builtFrom: meta.built_from, census },
+    });
+    initViews({ db, navigateToNode });
   } catch (err) {
     console.error(err);
     renderErrorPage('Board navigation failed to start', [String(err?.stack ?? err)]);
