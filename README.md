@@ -47,11 +47,18 @@ TypeScript re-implementation of atomic-chess rules.
   surface.
 - `fe/public/js/engine.js` — browser wrapper over the vendored WASM
   engine.
+- `fe/public/js/nav.js` — board + move navigation along stored lines:
+  the navigation state is the move path (resolved per ply with the indexed
+  `(parent_id, move_uci)` lookup), the board always renders the engine's
+  replayed FEN, the move list shows recorded children with their proven
+  facts (win/loss/undecided, depth bound) plus legal replies without
+  records as "unknown", and the history sidebar offers undo and
+  click-to-jump-back.
 - `fe/delivery.json` — the recorded delivery stamp.
 
-Board navigation and the node facts panel are planned next — see
-`docs/plans/redesign/` (plans, decisions, and the normative data contract
-in `docs/plans/redesign/handoff/`).
+Board navigation is implemented; the node facts panel is planned next —
+see `docs/plans/redesign/` (plans, decisions, and the normative data
+contract in `docs/plans/redesign/handoff/`).
 
 ## License
 

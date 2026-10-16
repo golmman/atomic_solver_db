@@ -154,6 +154,21 @@ main {
   color: #333;
 }
 
+/* Node status line (plan3; the full facts panel is plan4). Shares the
+   meta-box look that is already part of the preserved style. */
+#node-status {
+  width: calc(var(--sq-size) * 8);
+  background: var(--panel);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 0.9rem;
+}
+
+#node-status p {
+  margin: 0;
+}
+
 #meta-box {
   width: calc(var(--sq-size) * 8);
   background: var(--panel);
@@ -210,6 +225,97 @@ main {
   color: #fff;
 }
 
+/* Move-button status colors (plan3 addition): recorded win → accent,
+   recorded loss → danger, recorded open (undecided) and rowless legal
+   replies (unknown) → neutral. */
+#moves button.move-win {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#moves button.move-win:hover,
+#moves button.move-win:focus {
+  background: var(--accent);
+  color: #fff;
+}
+
+#moves button.move-loss {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+#moves button.move-loss:hover,
+#moves button.move-loss:focus {
+  background: var(--danger);
+  color: #fff;
+}
+
+#moves button.move-open,
+#moves button.move-unknown {
+  border-color: #999;
+  color: #555;
+}
+
+#moves button.move-unknown {
+  border-style: dashed;
+}
+
+#moves button.move-open:hover,
+#moves button.move-open:focus,
+#moves button.move-unknown:hover,
+#moves button.move-unknown:focus {
+  background: #999;
+  color: #fff;
+}
+
+/* Move-group subheadings (plan3 addition: two visibly separate groups). */
+#moves-panel h3 {
+  margin: 0.9rem 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+#moves-panel h3:first-of-type {
+  margin-top: 0;
+}
+
+#unknown-moves {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+#unknown-moves li {
+  display: block;
+}
+
+#unknown-moves button {
+  border: 1px dashed #999;
+  background: #fff;
+  color: #555;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+  width: 100%;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+#unknown-moves button:hover,
+#unknown-moves button:focus {
+  background: #999;
+  color: #fff;
+}
+
 .empty {
   color: #777;
   font-style: italic;
@@ -257,6 +363,15 @@ main {
 #history li.start {
   font-style: italic;
   color: #555;
+}
+
+/* Clickable history entries (plan3 addition: entries jump back). */
+#history .hist-move {
+  cursor: pointer;
+}
+
+#history .hist-move:hover {
+  text-decoration: underline;
 }
 
 /* Gate / boot status (version-stamp panel + structural gate summary) */

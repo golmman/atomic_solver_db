@@ -12,6 +12,7 @@ import {
 } from './db.js';
 import { runGate1, runGate2, runGate3 } from './gates.js';
 import { loadEngine } from './engine.js';
+import { initNav } from './nav.js';
 
 const gatePanel = document.getElementById('gate-panel');
 
@@ -235,8 +236,9 @@ async function boot() {
   // Gate 3 (§8.3): replay the whole tree with the producer's rules engine.
   setProgress('Replaying all stored paths with the rules engine …');
   let replay;
+  let engine;
   try {
-    const engine = await loadEngine();
+    engine = await loadEngine();
     replay = runGate3(meta, nodes, engine);
   } catch (err) {
     renderErrorPage('Load gate failed: rules engine unavailable', [
@@ -272,6 +274,16 @@ async function boot() {
     replay,
   });
   void tables;
+
+  // Board + move navigation (plan3): the gates passed, so the replayed tree
+  // is trusted. Reuse the engine facade the replay gate initialised.
+  const root = nodes.find((n) => n.parentId === null || n.parentId === undefined);
+  try {
+    initNav({ db, engine, rootFen: meta.root_fen, root });
+  } catch (err) {
+    console.error(err);
+    renderErrorPage('Board navigation failed to start', [String(err?.stack ?? err)]);
+  }
 }
 
 boot().catch((err) => {

@@ -100,6 +100,57 @@ export function readCensus(db) {
   };
 }
 
+// Indexed per-ply resolution (global_proof_store §7): the node for one more
+// move of the current path. Node identity is the path — resolution always
+// goes through (parent_id, move_uci), never through a position.
+export function findChildByMove(db, parentId, moveUci) {
+  const stmt = db.prepare(
+    'SELECT id, parent_id, ply, move_uci, move_code, outcome, depth_bound, depth_status, provenance\n     FROM nodes WHERE parent_id = ? AND move_uci = ?'
+  );
+  stmt.bind([parentId, moveUci]);
+  let row = null;
+  if (stmt.step()) {
+    const r = stmt.getAsObject();
+    row = {
+      id: r.id,
+      parentId: r.parent_id,
+      ply: r.ply,
+      moveUci: r.move_uci,
+      moveCode: r.move_code,
+      outcome: r.outcome,
+      depthBound: r.depth_bound,
+      depthStatus: r.depth_status,
+      provenance: r.provenance,
+    };
+  }
+  stmt.free();
+  return row;
+}
+
+// Stored children of a node, in id order (spec §7 children query). A missing
+// row means "no recorded fact", never "illegal" or "refuted".
+export function readChildren(db, nodeId) {
+  const rows = [];
+  const stmt = db.prepare(
+    `SELECT id, move_uci, move_code, outcome, depth_bound, depth_status
+     FROM nodes WHERE parent_id = ? ORDER BY id`
+  );
+  stmt.bind([nodeId]);
+  while (stmt.step()) {
+    const r = stmt.getAsObject();
+    rows.push({
+      id: r.id,
+      moveUci: r.move_uci,
+      moveCode: r.move_code,
+      outcome: r.outcome,
+      depthBound: r.depth_bound,
+      depthStatus: r.depth_status,
+    });
+  }
+  stmt.free();
+  return rows;
+}
+
 // Whole-table read of nodes (≈43k rows, well within one tab). `censor` is
 // never read.
 export function readAllNodes(db) {

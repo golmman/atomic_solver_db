@@ -82,6 +82,10 @@ silent skip.
   invariants a–f), gate 3 (replay checks).
 - `fe/public/js/engine.js` — browser wrapper over the vendored WASM
   engine (`fe/public/vendor/engine/`, produced by `engine/build.sh`).
+- `fe/public/js/nav.js` — board + move navigation (plan3): navigation
+  state is the path, positions come from engine replay, move lists split
+  into recorded children (status-coloured) and rowless legal replies
+  ("unknown").
 - `fe/public/js/app.js` — boot: progress, gates, version-stamp panel.
 - `fe/public/index.html`, `fe/public/style.css` — look and feel
   (preserved per D4; extended, not restyled).
@@ -107,7 +111,35 @@ silent skip.
 - Acceptance for redesign sessions: `rg -i 'proof_tree|podman|postgres|pg\b|chessops|bin-loader'`
   finds no live references outside `docs/plans/redesign/`.
 
-## Pending (plan3/plan4)
+## UI architecture (plan3)
 
-Board navigation (plan3) and the node facts panel (plan4) are next; the
-rules-engine surface (`fe/public/js/engine.js`) is in place for them.
+- **State = the path.** The navigation state is the list of UCI moves from
+  the root plus the resolved node-id chain (one entry per ply, `null` when
+  the path has no row). Node identity is the path: each ply resolves via
+  the indexed lookup `SELECT id FROM nodes WHERE parent_id = ? AND
+  move_uci = ?` (`db.findChildByMove`); positions are never looked up in
+  the DB (it stores no FENs) — the board renders `engine.fen()` of the
+  replayed position.
+- **Engine board.** One engine board is created over `root_fen` at boot
+  and kept for the session; navigation applies/undoes moves on it
+  (`engine.apply`/`engine.undo`), reusing the facade the replay gate
+  initialised.
+- **Move lists** (right sidebar, two visibly separate groups):
+  recorded children (stored rows in id order, labelled with the recorded
+  fact — win → `--accent`, loss → `--danger`, open → neutral, labelled
+  *undecided*) and legal replies without rows (engine legal set minus the
+  recorded set — neutral dashed, labelled *unknown*). Both navigate.
+  Beyond a row-free node there are no rows at all, so the recorded group
+  is empty there and every legal reply is unknown.
+- **History** (left sidebar): path breadcrumb with move-number grouping,
+  entries clickable to jump back, `Undo` button; hover arrow and
+  last-move highlight on every move button.
+- A row-free position shows "No recorded facts for this position —
+  unknown (not in the database)"; no "undecided" label there. The full
+  node facts panel is plan4.
+
+## Pending (plan4)
+
+The node facts panel (outcome, depth_bound, depth_status, terminality,
+provenance) and polish are next; the navigation surface
+(`fe/public/js/nav.js`) is in place for it.
