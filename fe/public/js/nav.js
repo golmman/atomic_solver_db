@@ -133,13 +133,26 @@ function renderBoard(fen, lastMoveUci) {
 //   fact (win/loss + depth_bound + exact/bound; open = undecided);
 //   legal replies without rows — engine legal set minus the recorded set,
 //   rendered as plain "unknown".
+// Labels are always rendered from White's perspective: a stored outcome is
+// from the child's own side-to-move perspective (the opponent of the mover),
+// so it is inverted exactly when it is White to move at the current node.
 // ---------------------------------------------------------------------------
 
-function factText(row) {
-  if (row.outcome === null || row.outcome === undefined) return 'undecided';
-  if (row.depthBound === 0) return `${row.outcome} · terminal`;
+// Stored outcome → White's perspective. `whiteToMove` = side to move at the
+// node whose children are listed. When White is to move, the child's side to
+// move is Black, so 'win' (Black wins) means White loses and vice versa;
+// when Black is to move the child's perspective already matches White's.
+function whitePerspective(outcome, whiteToMove) {
+  if (outcome === null || outcome === undefined) return null;
+  if (!whiteToMove) return outcome;
+  return outcome === 'win' ? 'loss' : 'win';
+}
+
+function factText(row, outcome) {
+  if (outcome === null || outcome === undefined) return 'undecided';
+  if (row.depthBound === 0) return `${outcome} · terminal`;
   const scope = row.depthStatus === 'exact' ? 'exact' : 'at most';
-  return `${row.outcome} · ≤ ${row.depthBound} plies (${scope})`;
+  return `${outcome} · ≤ ${row.depthBound} plies (${scope})`;
 }
 
 function moveButton(uci, label, cls, onClick) {
@@ -154,7 +167,7 @@ function moveButton(uci, label, cls, onClick) {
   return li;
 }
 
-function renderMoves(children, legalCodes) {
+function renderMoves(children, legalCodes, whiteToMove) {
   const list = document.getElementById('moves');
   const noMoves = document.getElementById('no-moves');
   const unknownList = document.getElementById('unknown-moves');
@@ -168,14 +181,15 @@ function renderMoves(children, legalCodes) {
   );
 
   for (const child of children) {
+    const outcome = whitePerspective(child.outcome, whiteToMove);
     const cls =
-      child.outcome === 'win'
+      outcome === 'win'
         ? 'move-win'
-        : child.outcome === 'loss'
+        : outcome === 'loss'
           ? 'move-loss'
           : 'move-open';
     list.appendChild(
-      moveButton(child.moveUci, `${child.moveUci} — ${factText(child)}`, cls, () =>
+      moveButton(child.moveUci, `${child.moveUci} — ${factText(child, outcome)}`, cls, () =>
         navigate(child.moveUci, child.moveCode)
       )
     );
@@ -487,7 +501,7 @@ function render() {
   renderFacts();
   const children = state.nodeId === null ? [] : readChildren(db, state.nodeId);
   const legalCodes = engine.legal(state.boardId);
-  renderMoves(children, legalCodes);
+  renderMoves(children, legalCodes, fen.split(' ')[1] === 'w');
   renderHistory();
 }
 
