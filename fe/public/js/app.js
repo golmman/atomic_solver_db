@@ -10,7 +10,8 @@ import {
   readShardCount,
   readAllNodes,
 } from './db.js';
-import { runGate1, runGate2 } from './gates.js';
+import { runGate1, runGate2, runGate3 } from './gates.js';
+import { loadEngine } from './engine.js';
 
 const gatePanel = document.getElementById('gate-panel');
 
@@ -59,7 +60,7 @@ function stampRow(dt, dd) {
   return row;
 }
 
-function renderStampPanel({ stamp, fileSha, meta, census, shardCount, checks }) {
+function renderStampPanel({ stamp, fileSha, meta, census, shardCount, checks, replay }) {
   gatePanel.innerHTML = '';
 
   const panel = document.createElement('div');
@@ -105,6 +106,43 @@ function renderStampPanel({ stamp, fileSha, meta, census, shardCount, checks }) 
   }
   summary.appendChild(list);
   gatePanel.appendChild(summary);
+
+  if (replay) {
+    const replayPanel = document.createElement('div');
+    replayPanel.className = 'gate-summary';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Replay gate (§8.3, engine-verified)';
+    replayPanel.appendChild(h3);
+    const ul = document.createElement('ul');
+    const head = document.createElement('li');
+    const headStatus = document.createElement('span');
+    headStatus.className = replay.pass ? 'gate-pass' : 'gate-fail';
+    headStatus.textContent = replay.pass
+      ? `pass — ${fmt(replay.stats.visited)} nodes replayed in ${replay.elapsedMs} ms`
+      : `FAIL — ${replay.checks.reduce((n, c) => n + c.violations, 0)} violation(s) in ${fmt(replay.stats.visited)} replayed nodes`;
+    head.appendChild(headStatus);
+    head.appendChild(
+      document.createTextNode(
+        ` full replay from root_fen (${fmt(replay.stats.legalChecks)} legal-move checks)${
+          replay.stats.skippedSubtrees > 0
+            ? `, ${fmt(replay.stats.skippedSubtrees)} subtrees skipped (unreplayable moves)`
+            : ''
+        }`
+      )
+    );
+    ul.appendChild(head);
+    for (const check of replay.checks) {
+      const li = document.createElement('li');
+      const status = document.createElement('span');
+      status.className = check.pass ? 'gate-pass' : 'gate-fail';
+      status.textContent = check.pass ? 'pass' : `FAIL (${check.violations})`;
+      li.appendChild(status);
+      li.appendChild(document.createTextNode(` ${check.label}`));
+      ul.appendChild(li);
+    }
+    replayPanel.appendChild(ul);
+    gatePanel.appendChild(replayPanel);
+  }
 }
 
 async function boot() {
@@ -194,6 +232,36 @@ async function boot() {
     return;
   }
 
+  // Gate 3 (§8.3): replay the whole tree with the producer's rules engine.
+  setProgress('Replaying all stored paths with the rules engine …');
+  let replay;
+  try {
+    const engine = await loadEngine();
+    replay = runGate3(meta, nodes, engine);
+  } catch (err) {
+    renderErrorPage('Load gate failed: rules engine unavailable', [
+      String(err?.message ?? err),
+      '',
+      'The engine is built from engine/ by sh engine/build.sh and vendored',
+      'into fe/public/vendor/engine/ — npm start runs the build when the',
+      'vendor output is missing.',
+    ]);
+    return;
+  }
+  if (!replay.pass) {
+    renderErrorPage('Load gate failed: replay checks (§8.3)', [
+      `Replayed ${replay.stats.visited} nodes in ${replay.elapsedMs} ms.`,
+      'Replay violations:',
+      ...replay.checks
+        .filter((c) => !c.pass)
+        .flatMap((c) => [
+          `  ${c.label}: ${c.violations} violation(s)`,
+          ...c.samples.map((s) => `      e.g. ${s}`),
+        ]),
+    ]);
+    return;
+  }
+
   renderStampPanel({
     stamp: expected,
     fileSha,
@@ -201,6 +269,7 @@ async function boot() {
     census,
     shardCount,
     checks: gate2.checks,
+    replay,
   });
   void tables;
 }

@@ -1,0 +1,21 @@
+[package]
+name = "atomic-solver-engine"
+version = "0.1.0"
+edition = "2021"
+description = "WASM wrapper over atomic-movegen 2.3 for the proofdb browser replay gate"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# The producer's rules engine (DECISIONS.md D1). Bit-exact oracle for
+# replay-verifiable paths (global_proof_store.md invariant 1).
+atomic-movegen = "=2.3.0"
+# Pinned to the vendored wasm-bindgen-cli version (see engine/build.sh).
+wasm-bindgen = "=0.2.129"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"

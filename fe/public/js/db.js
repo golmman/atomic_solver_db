@@ -105,7 +105,7 @@ export function readCensus(db) {
 export function readAllNodes(db) {
   const nodes = [];
   const stmt = db.prepare(
-    `SELECT id, parent_id, ply, move_uci, outcome, depth_bound, depth_status, provenance
+    `SELECT id, parent_id, ply, move_uci, move_code, outcome, depth_bound, depth_status, provenance
      FROM nodes ORDER BY id`
   );
   while (stmt.step()) {
@@ -115,6 +115,7 @@ export function readAllNodes(db) {
       parentId: r.parent_id,
       ply: r.ply,
       moveUci: r.move_uci,
+      moveCode: r.move_code,
       outcome: r.outcome,
       depthBound: r.depth_bound,
       depthStatus: r.depth_status,

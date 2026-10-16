@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "sync": "node sync-vendor.mjs && node sync-db.mjs",
-    "start": "npm run sync && node server.mjs"
+    "start": "npm run sync && node sync-engine.mjs && node server.mjs"
   },
   "dependencies": {
     "sql.js": "^1.13.0"
