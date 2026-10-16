@@ -1,6 +1,8 @@
-db/proof_tree.bin
 __pycache__/
 *.pyc
 fe/node_modules/
 fe/package-lock.json
 data/
+fe/public/vendor/
+fe/public/proofdb.db
+fe/public/delivery.json

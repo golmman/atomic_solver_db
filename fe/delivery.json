@@ -1,0 +1,16 @@
+{
+  "description": "Expected version stamp of the proofdb.db delivery (from docs/plans/redesign/handoff/HANDOFF.md, delivery 2026-10-16, schema v2). Update deliberately with each new delivery.",
+  "file_sha256": "02fc7d60bc588ef5a1589671c7dc8dcd899ae8f8afe11d23c208dfc0300210ae",
+  "schema_version": 2,
+  "built_from": "70a160a65c9b08271de0865c09f2667779962741b4b8cf31f4695d347be79a58",
+  "root_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "census": {
+    "node_count": 43092,
+    "win": 21514,
+    "loss": 21514,
+    "open": 64
+  },
+  "terminal_count": 20220,
+  "max_ply": 22,
+  "shard_count": 405
+}

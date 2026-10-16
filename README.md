@@ -1,36 +1,39 @@
 # atomic_solver_db
 
-Loads the `proof_tree.bin` from atomic_solver into a containerized postgres db.
+A static, dependency-free proof-line browser over the atomic-chess startpos
+proof database (`proofdb.db`, SQLite, schema v2). All logic runs in the
+browser; the server only serves static files.
 
-## Build and run
+## Run
 
-- `make db_build` — build the Podman image (`localhost/atomic_solver_db:latest`).
-- `make db_rebuild` — rebuild the image with `--no-cache --pull`.
-- `make db_run` — start the PostgreSQL container on `localhost:5432`.
-- `make fe_run` — start the frontend on `localhost:7000`.
-
-## Quick query guide
-
-See proof tree meta data:
-
-```sql
-SELECT * FROM proof_tree_meta;
+```sh
+make fe_run          # cd fe && npm install && npm start
 ```
 
-See all children of root:
+Open `http://localhost:7000` (override with `PORT`/`HOST`).
 
-```sql
-SELECT * FROM proof_tree WHERE parent_id = 0;
-```
+`npm start` first runs the sync steps: vendoring sql.js into
+`fe/public/vendor/sqljs/` and verifying the delivery — the sha256 of
+`data/proofdb/proofdb.db` must match `fe/delivery.json` (hard failure with
+instructions otherwise), after which the file is copied to `fe/public/`.
 
-## Web frontend
+On load, the page enforces a version-stamp gate (schema version, node
+census, `built_from`) and structural invariant checks; any violation shows
+a blocking error page instead of the data.
 
-A simple web frontend is in `fe/`. Start the database first, then:
+## Architecture
 
-```bash
-cd fe
-npm install
-npm start
-```
+- `fe/server.mjs` — plain `node:http` static server, no API endpoints.
+- `fe/public/js/db.js` — fetches the DB and opens it read-only with the
+  vendored sql.js WASM SQLite.
+- `fe/public/js/gates.js` + `fe/public/js/app.js` — load gates and the
+  data version-stamp surface.
+- `fe/delivery.json` — the recorded delivery stamp.
 
-Open `http://localhost:7000` to browse the proof tree from the start position, make moves, undo, and view the current line.
+Board navigation and the node facts panel are planned next — see
+`docs/plans/redesign/` (plans, decisions, and the normative data contract
+in `docs/plans/redesign/handoff/`).
+
+## License
+
+MIT — see `LICENSE`.

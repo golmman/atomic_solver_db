@@ -1,15 +1,14 @@
 {
   "name": "atomic_solver_db_fe",
-  "version": "1.0.0",
-  "description": "Simple local web frontend for the atomic_solver proof tree database",
+  "version": "2.0.0",
+  "description": "Static proofdb browser for the atomic_solver proof-line database",
   "main": "server.mjs",
   "type": "module",
   "scripts": {
-    "start": "node server.mjs"
+    "sync": "node sync-vendor.mjs && node sync-db.mjs",
+    "start": "npm run sync && node server.mjs"
   },
   "dependencies": {
-    "chessops": "0.15.1",
-    "express": "4.22.2",
-    "pg": "8.22.0"
+    "sql.js": "^1.13.0"
   }
 }

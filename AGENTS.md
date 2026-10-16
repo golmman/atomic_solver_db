@@ -1,79 +1,77 @@
 # AGENTS.md
 
-## Redesign in planning (read this first for orientation)
-
-A redesign of this project is planned in `docs/plans/redesign/`:
-
-- `handoff/BROWSER_BRIEF.md`, `handoff/global_proof_store.md` (normative
-  schema-v2 contract), `handoff/HANDOFF.md` — the new data: a SQLite
-  delivery at `data/proofdb/proofdb.db` (sha256 and census verified on
-  receipt, see `docs/plans/redesign/DECISIONS.md` D5).
-- `DECISIONS.md` — rules-engine decision (D1: Rust/WASM of
-  `atomic-movegen` 2.3; fallback raw ABI) and secondary decisions D2–D6.
-- `plan1.md` … `plan4.md` — consecutive single-session implementation
-  plans (cleanup + gates, WASM engine + replay gate, board navigation,
-  facts panel + final polish). Each ends with `reportN.md` recording
-  results; read the latest report before continuing.
-
-The old stack below (Podman/PostgreSQL, `db/`, `proof_tree.bin`) is
-scheduled for removal in plan1. Nothing below is invalid yet — sessions
-before plan1 must keep it truthful.
-
 ## Project overview
 
-`atomic_solver_db` loads a `proof_tree.bin` (produced by the `atomic_solver` project) into a containerized PostgreSQL database for querying.
+`atomic_solver_db` is a static, dependency-free proof-line browser over the
+startpos proof database of atomic chess (`proofdb.db`, SQLite, schema v2 —
+see `docs/plans/redesign/handoff/global_proof_store.md`). All logic runs
+client-side; the server only serves static files.
+
+A redesign is in progress, planned in `docs/plans/redesign/`:
+
+- `handoff/` — the data contract: `global_proof_store.md` (normative
+  schema-v2 spec), `BROWSER_BRIEF.md`, `HANDOFF.md`.
+- `DECISIONS.md` — decisions D1–D6 (D1: Rust/WASM engine of
+  `atomic-movegen` 2.3, **not yet built**; D2 sql.js; D3 static server;
+  D4 preserved look; D5 delivery gate; D6 absence semantics).
+- `plan1.md` … `plan4.md` — consecutive single-session plans (plan1 done:
+  old stack removed, scaffold + load gate; plan2: WASM engine + replay
+  gate; plan3: board navigation; plan4: node facts panel + polish). Each
+  ends with `reportN.md`; read the latest report before continuing.
 
 ## Build and run
 
-- `make db_build` — build the Podman image (`localhost/atomic_solver_db:latest`).
-- `make db_rebuild` — rebuild the image with `--no-cache --pull`.
-- `make db_run` — start the PostgreSQL container on `localhost:5432`.
-- `make fe_run` — start the frontend on `localhost:7000`.
+- `make fe_run` — equivalently `cd fe && npm install && npm start`.
+- Site: `http://localhost:7000` (override with `PORT`/`HOST`).
+- `npm start` first runs the sync steps:
+  - `sync-vendor.mjs` copies sql.js dist files to `fe/public/vendor/sqljs/`.
+  - `sync-db.mjs` verifies the sha256 of `data/proofdb/proofdb.db`
+    against `fe/delivery.json` and copies the file (+ the stamp) to
+    `fe/public/`. A mismatch hard-fails with instructions.
 
-Requires **Podman**. The run script expects `atomic_solver/proof_tree.bin` in the parent directory of this repo; otherwise a local `db/proof_tree.bin` must exist.
+## Data delivery
 
-## Container details
-
-- Image: `postgres:16` with Python 3 and `python3-psycopg2`.
-- Database: `proof_tree`
-- User/Password: `admin` / `secret`
-- Port: `5432`
-- The binary is mounted at `/proof_tree.bin` and loaded on first startup via `/docker-entrypoint-initdb.d/init-proof-tree.sh`.
-
-## Schema
-
-- `proof_tree(id, parent_id, uci_move, depth)` — adjacency table, root has `parent_id = NULL` and `uci_move = NULL`.
-- `proof_tree_meta(fen, version, root_outcome, root_depth, node_count)` — single-row metadata.
+- The database lives at `data/proofdb/proofdb.db` (gitignored).
+- `fe/delivery.json` carries the expected version stamp (file sha256,
+  `built_from`, census). A new delivery means deliberately updating that
+  file after verifying it against `docs/plans/redesign/handoff/HANDOFF.md`.
+- On load, the browser enforces the version-stamp gate (§8.1) and the
+  structural invariant gate a–f (§8.2); violations render a blocking
+  error page.
 
 ## Key files
 
-- `db/Dockerfile` — container definition.
-- `db/build.sh` / `db/run.sh` — Podman build/run wrappers.
-- `db/load_proof_tree.py` — parses `proof_tree.bin` and imports into PostgreSQL.
-- `db/proof_tree_dump.md` — `proof_tree.bin` format specification.
-- `docs/plans/fe/prompt.md` — rough plan for a future frontend.
+- `fe/server.mjs` — dependency-free static server (no API endpoints).
+- `fe/sync-db.mjs`, `fe/sync-vendor.mjs` — start-time sync steps.
+- `fe/delivery.json` — the delivery stamp the gate compares against.
+- `fe/public/js/db.js` — fetch + open the DB with sql.js, read helpers.
+- `fe/public/js/gates.js` — gate 1 (version stamp) and gate 2 (structural
+  invariants a–f).
+- `fe/public/js/app.js` — boot: progress, gates, version-stamp panel.
+- `fe/public/index.html`, `fe/public/style.css` — look and feel
+  (preserved per D4; extended, not restyled).
 
 ## Conventions
 
-- Shell scripts use `set -euo pipefail`.
-- Python is plain Python 3 with `psycopg2`; no package manager or test runner is configured yet.
-- `db/proof_tree.bin` and `__pycache__` are ignored by Git; do not commit generated binaries.
+- No generated files in Git: `data/`, `fe/public/vendor/`,
+  `fe/public/proofdb.db`, `fe/public/delivery.json`,
+  `fe/node_modules/`, `fe/package-lock.json` are gitignored.
+- Plain ES modules, no build step, no framework.
+- The `censor` table (schema v2) is producer scheduling state: never read
+  it, never render anything from it. The DB is never written to.
+- Missing child rows mean "no recorded fact", never "illegal" or
+  "refuted"; open nodes are *undecided*, never "draw" (D6).
 
 ## Verification
 
-There is no automated test or lint setup. After `make run`, verify the import with:
+- Start with `make fe_run` and open `http://localhost:7000`: the page must
+  show the version-stamp panel matching `HANDOFF.md` and all structural
+  checks `pass` (0 violations).
+- `node fe/sync-db.mjs` must report the delivery verified.
+- Acceptance for redesign sessions: `rg -i 'proof_tree|podman|postgres|pg\b|chessops|bin-loader'`
+  finds no live references outside `docs/plans/redesign/`.
 
-```sql
-SELECT * FROM proof_tree_meta;
-SELECT * FROM proof_tree WHERE parent_id = 0;
-```
+## Pending (plan2)
 
-## Frontend
-
-A local web frontend lives in `fe/`.
-
-- Install dependencies: `cd fe && npm install`
-- Start the server: `cd fe && npm start`
-- Open `http://localhost:7000`
-
-The server connects to PostgreSQL on `localhost:5432` (default database `proof_tree`, user `admin`, password `secret`; override with `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`). If the database is not reachable and `db/proof_tree.bin` exists, it falls back to loading the binary directly (`USE_BIN=1` forces the binary path).
+The rules engine (Rust/WASM `atomic-movegen` 2.3 per D1) is not built yet;
+board navigation and the node facts panel arrive with plan3/plan4.
