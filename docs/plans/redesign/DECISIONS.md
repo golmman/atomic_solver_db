@@ -72,6 +72,31 @@ reported 0 failures. `fe/delivery.json` carries the expected stamp
 (sha + `built_from` + census); the load gate compares against it and a
 new delivery means deliberately updating that file.
 
+### Addendum (plan5, 2026-10-20 delivery uptake) — verified on receipt
+
+The provider re-cut the delivery on 2026-10-20 (byte-identical tree; the
+producer migrated its standing layer to the v2 source-of-truth model).
+Verified on receipt:
+
+- sha256(proofdb.db) =
+  `375a2b1fc8a2959e3d60aa6737ba6b479988f23de3e953a3233fbae72b69f430`
+  (`sha256sum` against the delivered file).
+- `built_from` =
+  `47b25861d0f56776e04dc534cd8c781fdc45e180a54898e179264fbc6c3c5d72` —
+  the §2.2 **fold digest**; cross-checked by computing SHA-256 over the
+  sorted `"<tag> <sha256>\n"` lines of the 405 `shards` rows, which
+  yields exactly this value.
+- Census unchanged and confirmed by SQL: 43,092 nodes (21,514 win /
+  21,514 loss / 64 open), 20,220 terminals, max ply 22, 405 shards.
+- SQL pre-check of the relaxed §4 invariant 2/4: zero proven
+  non-terminal OR-nodes have more than one `'loss'` child (so the
+  current DB also satisfies the old stricter check — the shipped gates
+  were relaxed anyway so future deliveries storing extra proven-loss
+  lines are not falsely rejected).
+
+This supersedes the 2026-10-16 stamp above (kept as history);
+`fe/delivery.json` now records the 2026-10-20 stamp.
+
 ## D6 — Navigating into unrecorded territory
 
 Stored children are navigable facts. A *legal* reply without a row is

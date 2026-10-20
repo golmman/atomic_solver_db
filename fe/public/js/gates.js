@@ -48,18 +48,23 @@ export function runGate2(nodes) {
     const proven = n.outcome !== null && n.outcome !== undefined;
     const nonTerminal = proven && n.depthBound > 0;
 
-    // a. proven non-terminal OR-node: exactly one 'loss' child and
-    //    depth_bound = child.depth_bound + 1
+    // a. proven non-terminal OR-node (spec §4.2/§4.4, relaxed 2026-10-20):
+    //    at least one 'loss' child (additional proven-loss children are
+    //    permitted — annotations from merged alternatives) and
+    //    depth_bound = min(loss child depth_bound) + 1
     if (nonTerminal && n.outcome === 'win') {
       const lossChildren = children.filter((c) => c.outcome === 'loss');
-      if (lossChildren.length !== 1) {
+      if (lossChildren.length === 0) {
         violations.a.push(
-          `node ${n.id} (win, depth_bound ${n.depthBound}): ${lossChildren.length} 'loss' children`
+          `node ${n.id} (win, depth_bound ${n.depthBound}): 0 'loss' children`
         );
-      } else if (n.depthBound !== lossChildren[0].depthBound + 1) {
-        violations.a.push(
-          `node ${n.id} (win): depth_bound ${n.depthBound} != child ${lossChildren[0].id}.depth_bound ${lossChildren[0].depthBound} + 1`
-        );
+      } else {
+        const minChild = Math.min(...lossChildren.map((c) => c.depthBound));
+        if (n.depthBound !== minChild + 1) {
+          violations.a.push(
+            `node ${n.id} (win): depth_bound ${n.depthBound} != min(loss child depth_bound) ${minChild} + 1`
+          );
+        }
       }
     }
 
@@ -94,7 +99,9 @@ export function runGate2(nodes) {
       );
     }
 
-    // e. id prefix ordering along parent chains: child.id > parent.id and
+    // e. id chain ordering along parent chains (spec §4.7 row identity:
+    //    a fold appends new ids past max(id), so a graft's child is
+    //    appended after its existing parent): child.id > parent.id and
     //    child.ply = parent.ply + 1
     if (n.parentId !== null && n.parentId !== undefined) {
       const parent = byId.get(n.parentId);
@@ -119,11 +126,11 @@ export function runGate2(nodes) {
   }
 
   const labels = {
-    a: "a. proven non-terminal OR-node: exactly one 'loss' child, depth = child + 1",
+    a: "a. proven non-terminal OR-node: ≥1 'loss' child, depth = min(loss child depth) + 1",
     b: 'b. proven non-terminal AND-node: depth = max(child depth) + 1',
     c: 'c. terminal nodes have no children rows',
     d: "d. depth_status NULL iff outcome NULL",
-    e: 'e. id prefix ordering (child.id > parent.id, ply + 1)',
+    e: 'e. id chain ordering (child.id > parent.id, ply + 1 — §4.7 row identity)',
     f: 'f. every parent_id reference resolves',
   };
   const checks = Object.keys(labels).map((k) => ({
@@ -149,7 +156,8 @@ export function runGate2(nodes) {
 //      position is statically terminal with the same side-to-move outcome;
 //   a. every stored child's move_code is a generated legal move code AND
 //      its move_uci equals that move's UCI rendering;
-//   c. proven non-terminal OR-node: its single 'loss' child is legal;
+//   c. proven non-terminal OR-node: every proven-loss child is legal
+//      (invariant 2 as relaxed 2026-10-20 — at least one loss child,
 //   b. proven non-terminal AND-node ('loss', depth_bound > 0): the set of
 //      generated legal replies EQUALS the set of stored children
 //      (AND/OR completeness, invariant 2 — the oracle for the
@@ -273,14 +281,14 @@ export function runGate3(meta, nodes, engine) {
         }
       }
 
-      // c. OR-node: its single 'loss' child must be a legal move
+      // c. OR-node: every proven-loss child must be a legal move
       if (nonTerminal && node.outcome === 'win') {
         const lossKids = frame.kids.filter((k) => k.outcome === 'loss');
-        if (lossKids.length === 1 && lossKids[0].moveCode != null) {
-          if (!legalSet.has(lossKids[0].moveCode)) {
+        for (const k of lossKids) {
+          if (k.moveCode != null && !legalSet.has(k.moveCode)) {
             sample(
               violations.orIllegalProof,
-              `node ${node.id} (win): proving child ${lossKids[0].id} (${lossKids[0].moveUci}) is not legal in the replayed position`
+              `node ${node.id} (win): proven-loss child ${k.id} (${k.moveUci}) is not legal in the replayed position`
             );
           }
         }
@@ -345,7 +353,7 @@ function finish(violations, stats, t0) {
     ['terminalMismatch', 'd. terminal claims match the replayed position (invariant 3)'],
     ['illegalMove', 'a. every stored child move_code is a legal move'],
     ['uciMismatch', "a. move_uci matches uci(move_code)"],
-    ['orIllegalProof', 'c. OR-node proving child is a legal move'],
+    ['orIllegalProof', 'c. OR-node proven-loss children are legal moves'],
     ['andSetMismatch', 'b. AND-node: legal replies equal stored children (invariant 2)'],
   ];
   const checks = categories.map(([key, label]) => ({

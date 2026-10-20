@@ -9,6 +9,7 @@ import {
   readCensus,
   readShardCount,
   readAllNodes,
+  readShardDigestInput,
 } from './db.js';
 import { runGate1, runGate2, runGate3 } from './gates.js';
 import { loadEngine } from './engine.js';
@@ -62,7 +63,7 @@ function stampRow(dt, dd) {
   return row;
 }
 
-function renderStampPanel({ stamp, fileSha, meta, census, shardCount, checks, replay }) {
+function renderStampPanel({ stamp, fileSha, meta, census, shardCount, foldDigest, foldDigestCaveat, checks, replay }) {
   gatePanel.innerHTML = '';
 
   const panel = document.createElement('div');
@@ -89,6 +90,12 @@ function renderStampPanel({ stamp, fileSha, meta, census, shardCount, checks, re
   panel.appendChild(stampRow('terminals', fmt(census.terminals)));
   panel.appendChild(stampRow('max ply', census.maxPly));
   panel.appendChild(stampRow('shards', fmt(shardCount)));
+  panel.appendChild(
+    stampRow(
+      'built_from fold digest',
+      foldDigestCaveat ?? `over ${fmt(shardCount)} shard rows: verified`
+    )
+  );
   gatePanel.appendChild(panel);
 
   const summary = document.createElement('div');
@@ -209,6 +216,28 @@ async function boot() {
   if (shardCount !== expected.shard_count) censusMismatch.push(`shards ${shardCount} != ${expected.shard_count}`);
   if (meta.built_from !== expected.built_from) censusMismatch.push(`built_from ${meta.built_from} != ${expected.built_from}`);
 
+  // Fold-digest verification of built_from (spec §2.2): SHA-256 over the
+  // sorted "<tag> <sha256>\n" lines of the shards table, computed in the
+  // browser via crypto.subtle — internally verifiable from the DB alone.
+  // crypto.subtle requires a secure context (http://localhost counts). If
+  // it is unavailable the check is skipped with a stated caveat in the
+  // stamp panel — never silently. A digest mismatch is a gate-1 failure
+  // (blocking, same as any other stamp mismatch).
+  let foldDigest = null;
+  let foldDigestCaveat = null;
+  if (globalThis.crypto?.subtle) {
+    setProgress('Computing built_from fold digest over the shards table …');
+    foldDigest = await sha256Hex(new TextEncoder().encode(readShardDigestInput(db)));
+    if (foldDigest !== meta.built_from) {
+      censusMismatch.push(
+        `built_from ${meta.built_from} != fold digest over ${shardCount} shard rows (${foldDigest})`
+      );
+    }
+  } else {
+    foldDigestCaveat =
+      'not verified — crypto.subtle unavailable (insecure context)';
+  }
+
   const gate1Failures = [...gate1.violations, ...censusMismatch];
 
   setProgress('Running structural invariant checks …');
@@ -271,6 +300,8 @@ async function boot() {
     meta,
     census,
     shardCount,
+    foldDigest,
+    foldDigestCaveat,
     checks: gate2.checks,
     replay,
   });

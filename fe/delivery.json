@@ -1,8 +1,8 @@
 {
-  "description": "Expected version stamp of the proofdb.db delivery (from docs/plans/redesign/handoff/HANDOFF.md, delivery 2026-10-16, schema v2). Update deliberately with each new delivery.",
-  "file_sha256": "02fc7d60bc588ef5a1589671c7dc8dcd899ae8f8afe11d23c208dfc0300210ae",
+  "description": "Expected version stamp of the proofdb.db delivery (from docs/plans/redesign/handoff/HANDOFF.md, delivery 2026-10-20 re-cut, schema v2; byte-identical tree to 2026-10-16 — only built_from (now the fold digest) and the file bytes changed). Update deliberately with each new delivery.",
+  "file_sha256": "375a2b1fc8a2959e3d60aa6737ba6b479988f23de3e953a3233fbae72b69f430",
   "schema_version": 2,
-  "built_from": "70a160a65c9b08271de0865c09f2667779962741b4b8cf31f4695d347be79a58",
+  "built_from": "47b25861d0f56776e04dc534cd8c781fdc45e180a54898e179264fbc6c3c5d72",
   "root_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   "census": {
     "node_count": 43092,

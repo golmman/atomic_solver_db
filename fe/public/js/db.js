@@ -14,6 +14,8 @@ function loadScript(src) {
   });
 }
 
+// sha256Hex(bytes) → hex. crypto.subtle requires a secure context —
+// http://localhost counts as one.
 export function sha256Hex(bytes) {
   return crypto.subtle
     .digest('SHA-256', bytes)
@@ -149,6 +151,23 @@ export function readChildren(db, nodeId) {
   }
   stmt.free();
   return rows;
+}
+
+// Fold-digest input for `built_from` (spec §2.2): the sorted lines
+// "<tag> <sha256>\n" over the shards table (405 rows here — a cheap read).
+// SHA-256 over these lines must equal meta.built_from; the digest itself
+// is computed by the caller (crypto.subtle, app.js).
+export function readShardDigestInput(db) {
+  const lines = [];
+  const stmt = db.prepare(
+    'SELECT tag, sha256 FROM shards ORDER BY tag'
+  );
+  while (stmt.step()) {
+    const r = stmt.getAsObject();
+    lines.push(`${r.tag} ${r.sha256}\n`);
+  }
+  stmt.free();
+  return lines.join('');
 }
 
 // Shard metadata for a node's provenance tags (evidence display only —

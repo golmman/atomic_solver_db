@@ -59,7 +59,11 @@ silent skip.
 
 ## Data delivery
 
-- The database lives at `data/proofdb/proofdb.db` (gitignored).
+- The database lives at `data/proofdb/proofdb.db` (gitignored). The
+  current delivery is the producer's 2026-10-20 re-cut: byte-identical
+  tree to the 2026-10-16 delivery, re-stamped onto the v2
+  source-of-truth model (`built_from` is now the §2.2 fold digest,
+  `47b25861d0f5…`; file sha256 `375a2b1fc8a2…`).
 - `fe/delivery.json` carries the expected version stamp (file sha256,
   `built_from`, census). A new delivery means deliberately updating that
   file after verifying it against `docs/plans/redesign/handoff/HANDOFF.md`.
@@ -69,13 +73,24 @@ silent skip.
   through the WASM engine (one apply per edge, one undo per backtrack,
   all 43k+ paths — not a sample), asserting at every node that stored
   child move codes are legal moves with matching UCI, that AND-node
-  legal-reply sets equal stored children (invariant 2), that terminal
-  claims (`depth_bound = 0`) match the replayed position (invariant 3),
-  and that `root_fen` parses. Violations render a blocking error page.
-  Terminal semantics follow the producer's atomic-variant convention:
-  a stalemate (no legal replies) is a **loss** for the side to move —
-  the crates.io `outcome()` helper's stalemate-draw is not the producer
-  convention; the proof tree never emits draw nodes.
+  legal-reply sets equal stored children (invariant 2), that every
+  OR-node proven-loss child is a legal move (at least one proven-loss
+  child required, additional ones permitted — invariant 2 as relaxed
+  2026-10-20), that terminal claims (`depth_bound = 0`) match the
+  replayed position (invariant 3), and that `root_fen` parses.
+  Violations render a blocking error page. Terminal semantics follow the
+  producer's atomic-variant convention: a stalemate (no legal replies)
+  is a **loss** for the side to move — the crates.io `outcome()`
+  helper's stalemate-draw is not the producer convention; the proof tree
+  never emits draw nodes.
+- `built_from` is verified from the DB alone (spec §2.2): the load gate
+  computes the SHA-256 fold digest over the sorted
+  `"<tag> <sha256>\n"` lines of the `shards` table
+  (`crypto.subtle.digest`, needs a secure context — `http://localhost`
+  counts) and compares it to `meta.built_from`; a mismatch is a blocking
+  gate-1 failure, and the stamp panel shows the verification result.
+  Gate 2 check (e) is commented/labelled under spec §4.7 row identity
+  (the check itself is unchanged).
 
 ## Key files
 
