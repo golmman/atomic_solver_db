@@ -4,3 +4,7 @@ Read `docs/plans/redesign/handoff/BROWSER_BRIEF.md`, then `docs/plans/redesign/h
 
 Don't implement yet, only draft consecutive implementation plans `planN.md` which are intended to be single sessions and write them to `docs/plans/redesign/`.
 Each plan should finish with an implementation report `reportN.md` so the next session knows where we left off.
+
+---
+
+the provider of the proofdb (`data/proofdb/proofdb.db`) has update the handoff
