@@ -10,3 +10,10 @@ Each plan should finish with an implementation report `reportN.md` so the next s
 the provider of the proofdb (`data/proofdb/proofdb.db`) has updated the handoff docs (docs/plans/redesign/handoff/).
 Please look at the changes of the last commit and see what needs to be changed.
 Draft a plan `docs/plans/redesign/plan5.md` if changes are necessary.
+
+---
+
+Last time we finished with `docs/plans/redesign/plan5.md`
+i don't want to have explicit handoffs which update the `fe/delivery.json` etc. . Instead i simply want to copy the updated `proofdb.db` file over.
+Are there any changes on this side necessary for this to work?
+
