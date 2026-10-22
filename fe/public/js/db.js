@@ -1,5 +1,5 @@
-// DB access layer (DECISIONS.md D2): fetch the delivery file verbatim and
-// open it with the vendored sql.js WASM SQLite. All access is read-only;
+// DB access layer (DECISIONS.md D2): fetch the proofdb.db delivery
+// verbatim and open it with the vendored sql.js WASM SQLite. All access is read-only;
 // the `censor` table (producer scheduling state) is never read, and unknown
 // tables are tolerated.
 const VENDOR = 'vendor/sqljs';
@@ -26,7 +26,7 @@ export function sha256Hex(bytes) {
     );
 }
 
-// Fetch the delivery file and open it in sql.js. Returns the raw bytes (for
+// Fetch the proofdb.db delivery and open it in sql.js. Returns the raw bytes (for
 // the file-sha256 stamp) plus the opened database handle.
 export async function openDelivery(onProgress) {
   onProgress?.('Fetching proofdb.db …');

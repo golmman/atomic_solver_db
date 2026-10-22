@@ -1,6 +1,9 @@
-// Module boot: load the delivery file, run the version-stamp gate (§8.1)
-// and the structural invariant gate (§8.2), then show the data
-// version-stamp surface. Any gate failure renders the blocking error page.
+// Module boot: open the DB, run the version-stamp gate (§8.1) and the
+// structural invariant gate (§8.2), then show the data version-stamp
+// surface. No delivery stamp is fetched: uptake is drop-in (D5 as amended
+// by plan6) and the stamp is read from the DB itself — the gates are all
+// self-describing, DB-only checks. Any gate failure renders the blocking
+// error page.
 import {
   openDelivery,
   sha256Hex,
@@ -63,7 +66,7 @@ function stampRow(dt, dd) {
   return row;
 }
 
-function renderStampPanel({ stamp, fileSha, meta, census, shardCount, foldDigest, foldDigestCaveat, checks, replay }) {
+function renderStampPanel({ fileSha, meta, census, shardCount, foldDigest, foldDigestCaveat, checks, replay }) {
   gatePanel.innerHTML = '';
 
   const panel = document.createElement('div');
@@ -73,9 +76,15 @@ function renderStampPanel({ stamp, fileSha, meta, census, shardCount, foldDigest
   h2.textContent = 'Data version stamp';
   panel.appendChild(h2);
 
-  panel.appendChild(stampRow('built_from', stamp.built_from));
+  panel.appendChild(stampRow('built_from', meta.built_from));
   panel.appendChild(
-    stampRow('file sha256', fileSha)
+    stampRow('file sha256 (display only)', fileSha)
+  );
+  panel.appendChild(
+    stampRow(
+      'stamp source',
+      'database (self-describing); drop-in uptake, no pinned delivery stamp'
+    )
   );
   panel.appendChild(stampRow('schema_version', meta.schema_version));
   panel.appendChild(
@@ -155,19 +164,6 @@ function renderStampPanel({ stamp, fileSha, meta, census, shardCount, foldDigest
 }
 
 async function boot() {
-  let expected;
-  try {
-    const res = await fetch('delivery.json');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    expected = await res.json();
-  } catch (err) {
-    renderErrorPage('Load gate failed: delivery stamp unavailable', [
-      `Could not fetch delivery.json (${err.message}).`,
-      'This file is copied from fe/delivery.json by the sync step — start the site with `npm start`.',
-    ]);
-    return;
-  }
-
   let opened;
   try {
     opened = await openDelivery((t) => setProgress(t));
@@ -191,30 +187,11 @@ async function boot() {
   setProgress('Reading nodes table (whole table) …');
   const nodes = readAllNodes(db);
 
-  // Delivery gate (D5): file sha256 must match the recorded delivery stamp.
-  if (fileSha !== expected.file_sha256) {
-    renderErrorPage('Load gate failed: delivery sha256 mismatch', [
-      `expected (fe/delivery.json): ${expected.file_sha256}`,
-      `actual (served file):        ${fileSha}`,
-      '',
-      'A new delivery is recorded deliberately: place it at',
-      'data/proofdb/proofdb.db, verify it against the producer handoff,',
-      'update fe/delivery.json, and commit that change.',
-    ]);
-    return;
-  }
-
-  // Gate 1 (§8.1): schema_version, node_count == COUNT(*).
+  // Gate 1 (§8.1): schema_version, node_count == COUNT(*). The census,
+  // max ply, shard count, root_fen and built_from are read live from the
+  // DB and shown in the stamp panel — displayed, not compared to a pin.
   const gate1 = runGate1(meta, nodes);
   const censusMismatch = [];
-  if (census.total !== expected.census.node_count) censusMismatch.push(`node_count ${census.total} != ${expected.census.node_count}`);
-  if (census.win !== expected.census.win) censusMismatch.push(`win ${census.win} != ${expected.census.win}`);
-  if (census.loss !== expected.census.loss) censusMismatch.push(`loss ${census.loss} != ${expected.census.loss}`);
-  if (census.open !== expected.census.open) censusMismatch.push(`open ${census.open} != ${expected.census.open}`);
-  if (census.terminals !== expected.terminal_count) censusMismatch.push(`terminals ${census.terminals} != ${expected.terminal_count}`);
-  if (census.maxPly !== expected.max_ply) censusMismatch.push(`max ply ${census.maxPly} != ${expected.max_ply}`);
-  if (shardCount !== expected.shard_count) censusMismatch.push(`shards ${shardCount} != ${expected.shard_count}`);
-  if (meta.built_from !== expected.built_from) censusMismatch.push(`built_from ${meta.built_from} != ${expected.built_from}`);
 
   // Fold-digest verification of built_from (spec §2.2): SHA-256 over the
   // sorted "<tag> <sha256>\n" lines of the shards table, computed in the
@@ -222,7 +199,7 @@ async function boot() {
   // crypto.subtle requires a secure context (http://localhost counts). If
   // it is unavailable the check is skipped with a stated caveat in the
   // stamp panel — never silently. A digest mismatch is a gate-1 failure
-  // (blocking, same as any other stamp mismatch).
+  // (blocking, same as any other internal inconsistency).
   let foldDigest = null;
   let foldDigestCaveat = null;
   if (globalThis.crypto?.subtle) {
@@ -295,7 +272,6 @@ async function boot() {
   }
 
   renderStampPanel({
-    stamp: expected,
     fileSha,
     meta,
     census,

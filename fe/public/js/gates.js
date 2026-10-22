@@ -16,8 +16,9 @@ function childMap(nodes) {
 }
 
 // Gate 1: schema_version ∈ {1, 2}; meta.node_count == actual row count.
-// `built_from` is read for display, not compared here (census is the data
-// stamp; the file sha is checked by the delivery gate in app.js).
+// `built_from` is read for display and verified from the DB alone via the
+// §2.2 fold digest over the shards table (app.js); no file sha is compared
+// anywhere (drop-in uptake, D5 as amended by plan6).
 export function runGate1(meta, nodes) {
   const violations = [];
   const schemaVersion = Number(meta.schema_version);

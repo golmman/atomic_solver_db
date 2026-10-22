@@ -5,5 +5,4 @@ fe/package-lock.json
 data/
 fe/public/vendor/
 fe/public/proofdb.db
-fe/public/delivery.json
 engine/target/

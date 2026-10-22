@@ -10,19 +10,20 @@ keyed by move path; a missing child row means "no recorded fact", and an
 open node is *undecided*. All logic runs client-side; the server only
 serves static files.
 
-The redesign (planned in `docs/plans/redesign/`) is **complete** — all four
-single-session plans are done and each has a `reportN.md`:
+The redesign (planned in `docs/plans/redesign/`) is **complete**; later
+single-session plans (5, 6) are new scope on top of it, each with a
+`reportN.md`:
 
 - `handoff/` — the data contract: `global_proof_store.md` (normative
   schema-v2 spec), `BROWSER_BRIEF.md`, `HANDOFF.md`.
 - `DECISIONS.md` — decisions D1–D6 (D1: Rust/WASM engine of
   `atomic-movegen` 2.3, built as the `engine/` crate; D2 sql.js; D3
-  static server; D4 preserved look; D5 delivery gate; D6 absence
-  semantics).
-- `plan1.md` … `plan4.md` + `report1.md` … `report4.md` — plans and their
-  session reports. Read the latest report (`report4.md`) for the state of
-  the shipped site. Nothing further is planned; treat new work as new
-  scope.
+  static server; D4 preserved look; D5 delivery gate — amended by
+  plan6 to drop-in uptake; D6 absence semantics).
+- `plan1.md` … `plan6.md` + `report1.md` … `report6.md` — plans and
+  their session reports. Read the latest report (`report6.md`) for the
+  state of the shipped site. Nothing further is planned; treat new work
+  as new scope.
 
 ## Rules engine (D1)
 
@@ -51,23 +52,33 @@ silent skip.
 - Site: `http://localhost:7000` (override with `PORT`/`HOST`).
 - `npm start` first runs the sync steps:
   - `sync-vendor.mjs` copies sql.js dist files to `fe/public/vendor/sqljs/`.
-  - `sync-db.mjs` verifies the sha256 of `data/proofdb/proofdb.db`
-    against `fe/delivery.json` and copies the file (+ the stamp) to
-    `fe/public/`. A mismatch hard-fails with instructions.
+  - `sync-db.mjs` copies `data/proofdb/proofdb.db` to `fe/public/`
+    (drop-in uptake per D5 as amended by plan6 — no stamp comparison;
+    it hard-fails only if the delivery file cannot be read).
   - `sync-engine.mjs` builds the WASM engine when
     `fe/public/vendor/engine/` is missing (see above).
 
 ## Data delivery
 
 - The database lives at `data/proofdb/proofdb.db` (gitignored). The
-  current delivery is the producer's 2026-10-20 re-cut: byte-identical
-  tree to the 2026-10-16 delivery, re-stamped onto the v2
-  source-of-truth model (`built_from` is now the §2.2 fold digest,
-  `47b25861d0f5…`; file sha256 `375a2b1fc8a2…`).
-- `fe/delivery.json` carries the expected version stamp (file sha256,
-  `built_from`, census). A new delivery means deliberately updating that
-  file after verifying it against `docs/plans/redesign/handoff/HANDOFF.md`.
-- On load, the browser enforces the version-stamp gate (§8.1), the
+  delivery currently on disk is a newer producer cut (uptaken by the
+  plan6 drop-in rehearsal, no stamp edit involved): 87,576 nodes
+  (43,737 win / 43,737 loss / 102 open), 37,607 terminals, max ply 33,
+  630 shards, `built_from = fe19b1233d95…` (§2.2 fold digest, verified
+  in the boot gate), file sha256 `7f12b92a097e…` (display only).
+- **Uptake is drop-in** (D5 as amended by plan6): a new delivery is
+  taken up by copying the new `proofdb.db` over
+  `data/proofdb/proofdb.db`; `npm start` copies it to `fe/public/`.
+  There is no external stamp file — `fe/delivery.json` no longer
+  exists. The gates are all **self-describing, DB-only** checks:
+  schema/invariants/fold digest/replay (see below). The live-computed
+  file sha256 is displayed in the stamp panel but compared to nothing.
+  **Accepted trade-off:** what remains proves the DB is internally
+  consistent and rules-correct, but cannot distinguish a different,
+  self-consistent proof tree from the agreed one; the file arrives by a
+  trusted copy from the producer pipeline, and the fold digest remains a
+  strong content fingerprint.
+- On load, the browser enforces the schema gate (§8.1), the
   structural invariant gate a–f (§8.2), and the replay gate (§8.3):
   a depth-first replay of the whole stored tree from `meta.root_fen`
   through the WASM engine (one apply per edge, one undo per backtrack,
@@ -97,7 +108,6 @@ silent skip.
 - `fe/server.mjs` — dependency-free static server (no API endpoints).
 - `fe/sync-db.mjs`, `fe/sync-vendor.mjs`, `fe/sync-engine.mjs` —
   start-time sync steps.
-- `fe/delivery.json` — the delivery stamp the gate compares against.
 - `fe/public/js/db.js` — fetch + open the DB with sql.js, read helpers
   (children, per-ply child lookup, shard metadata, view queries).
 - `fe/public/js/gates.js` — gate 1 (version stamp), gate 2 (structural
@@ -131,7 +141,7 @@ silent skip.
 ## Conventions
 
 - No generated files in Git: `data/`, `fe/public/vendor/`,
-  `fe/public/proofdb.db`, `fe/public/delivery.json`,
+  `fe/public/proofdb.db`,
   `fe/node_modules/`, `fe/package-lock.json` are gitignored.
 - Plain ES modules, no build step, no framework.
 - The `censor` table is never read and never rendered. The DB is never
@@ -143,10 +153,10 @@ silent skip.
 ## Verification
 
 - Start with `make fe_run` and open `http://localhost:7000`: the page must
-  show the version-stamp panel matching `HANDOFF.md`, all structural
-  checks `pass` (0 violations), and the replay gate `pass` over all
-  43,092 nodes (0 violations).
-- `node fe/sync-db.mjs` must report the delivery verified.
+  show the self-describing version-stamp panel from the DB, all
+  structural checks `pass` (0 violations), and the replay gate `pass`
+  over every stored node (0 violations; 87,576 in the current delivery).
+- `node fe/sync-db.mjs` must report the delivery copied (with its sha256).
 - Acceptance for redesign sessions: `rg -i 'proof_tree|podman|postgres|pg\b|chessops|bin-loader'`
   finds no live references outside `docs/plans/redesign/`.
 
@@ -184,8 +194,9 @@ silent skip.
   shows `built_from` (short) + node census at all times; the full stamp +
   gate summary panel sits below it (boot surface).
 - **Views** (left sidebar, below history): the open frontier
-  (`outcome IS NULL ORDER BY ply, id`, 64 rows) and the shallowest proven
-  wins (`min depth_bound` among `'win'`; 20,220 rows, list capped at 50
+  (`outcome IS NULL ORDER BY ply, id`; 102 rows in the current
+  delivery) and the shallowest proven wins (`min depth_bound` among
+  `'win'`; 37,607 rows in the current delivery, list capped at 50
   with the full count stated). Every entry launches navigation to that
   node's path. Not implemented (recorded future work): principal-line
   renderer and shard browser.

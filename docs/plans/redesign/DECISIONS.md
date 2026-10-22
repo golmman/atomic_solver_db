@@ -97,6 +97,27 @@ Verified on receipt:
 This supersedes the 2026-10-16 stamp above (kept as history);
 `fe/delivery.json` now records the 2026-10-20 stamp.
 
+### Addendum 2 (plan6) — delivery gate amended to drop-in uptake
+
+The external pin is removed: uptake of a new delivery is now simply
+copying the updated `proofdb.db` over `data/proofdb/proofdb.db` (`npm
+start` copies it to `fe/public/`). `fe/delivery.json` is deleted, the
+sync step no longer compares a file sha256, and the boot gate no longer
+fetches a stamp — the gates that remain (schema_version/node_count,
+structural invariants a–f, the §2.2 fold-digest verification of
+`built_from`, and the full WASM-engine replay) are all self-describing,
+DB-only checks. The live-computed file sha256 stays displayed in the
+stamp panel, but is compared to nothing.
+
+Trade-off, restated in one sentence: what remains proves the DB is
+*internally consistent and rules-correct* but can no longer distinguish
+a *different, self-consistent* proof tree from the agreed one — accepted
+because the file arrives by a trusted copy from the producer pipeline
+and the fold digest remains a strong content fingerprint.
+
+The original D5 text and the plan5 addendum above are kept as history;
+their file-sha/census pinning is superseded by this addendum.
+
 ## D6 — Navigating into unrecorded territory
 
 Stored children are navigable facts. A *legal* reply without a row is
